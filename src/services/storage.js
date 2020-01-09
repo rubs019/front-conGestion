@@ -4,5 +4,9 @@ export const Token = {
 		this.value = token
 	}
 }
-
-export default Token
+export const User = {
+	username: null,
+	setUsername: function(username) {
+		this.username = username
+	}
+}

@@ -4,8 +4,9 @@
             <el-button type="info" icon="el-icon-back" circle class="back-btn" v-on:click="back"></el-button>
             <h1>TimeOff</h1>
         </div>
-        <div class="">
-            <h2>Current balance on XX/XX/20XX</h2>
+        <div>
+            <span class="title">Current balance on {{ currentDate }}</span>
+            <el-button type="info" plain v-on:click="$alert(token.value)">Token</el-button>
         </div>
         <el-table
                 :data="TimeOffs"
@@ -32,30 +33,44 @@
             </el-table-column>
             <el-table-column
                     prop="timeoff.current_balance"
+                    width="180"
                     label="Current Balance">
             </el-table-column>
         </el-table>
-        <div class="">
-            <h2>Events</h2>
+        <div>
+            <span class="title">Events</span>
+            <el-button type="primary" icon="el-icon-refresh" circle :loading="eventLoading"
+                       v-on:click="refreshEvents"></el-button>
         </div>
         <el-table
-                :data="Events"
+                :data="computedEvents"
                 style="width: 100%">
+            <el-table-column
+                    prop="requestId"
+                    label="ID">
+            </el-table-column>
             <el-table-column
                     prop="date"
                     label="Date">
             </el-table-column>
             <el-table-column
-                    prop="from"
                     label="From">
+                <template slot-scope="scope">
+                    {{ scope.row.from }}
+                </template>
             </el-table-column>
             <el-table-column
-                    prop="to"
                     label="To">
+                <template slot-scope="scope">
+                    {{ scope.row.to }}
+                </template>
             </el-table-column>
             <el-table-column
                     prop="days"
                     label="Days">
+                <template slot-scope="scope">
+                    {{ scope.row.totalDays }}
+                </template>
             </el-table-column>
             <el-table-column
                     prop="type"
@@ -68,42 +83,31 @@
 
 <script>
 	import { TimeOffAPI } from "../services/TimeOffApi"
+	import moment from "moment-timezone"
+	import { Token, User } from "../services/storage"
+
+    const myMoment = moment.tz("Europe/Paris").format('DD/MM/YYYY')
 
 	export default {
 		name: "timeoff",
 		mixins: [TimeOffAPI],
 		data() {
 			return {
+				currentDate: myMoment,
 				apiService: null,
+				eventLoading: null,
+              token: Token,
 				TimeOffs: [{
-					username: "employee1",
+					username: null,
 					timeoff: {
-						allotment: 20,
-						carried: 3,
-						taken: 0,
-						planned: 3,
-						current_balance: 20
+						allotment: null,
+						carried: null,
+						taken: null,
+						planned: null,
+						current_balance: null
 					}
 				}],
-				Events: [{
-					date: "01/01/2020",
-					from: "02/01/2020",
-					to: "05/01/2020",
-					days: 4,
-					type: "New request"
-				}, {
-					date: "01/01/2020",
-					from: "02/01/2020",
-					to: "05/01/2020",
-					days: 4,
-					type: "New request"
-				}, {
-					date: "01/01/2020",
-					from: "02/01/2020",
-					to: "05/01/2020",
-					days: 4,
-					type: "New request"
-				}]
+				realEvents: []
 			}
 		},
 		methods: {
@@ -112,16 +116,63 @@
 			},
 			currentBalance: async function() {
 				try {
-					const currentBalance = await this.getCurrentBalance()
-					console.log("currentBalance", currentBalance)
+					const currentBalance = await this.getCurrentBalance(User.username)
+					const body = await currentBalance.json()
+					this.TimeOffs = [{
+						username: User.username,
+						timeoff: {
+							allotment: body.attribueTimeOff,
+							carried: body.lastYearTimeOff,
+							taken: body.takenToDateTimeOff,
+							planned: body.plannedTimeOff,
+							current_balance: body.currentBalance
+						}
+					}]
 				} catch (err) {
 					console.error(err)
+					this.$message.error(err)
+					await this.$router.push("/")
+				}
+			},
+			refreshEvents: async function() {
+				this.allEvents()
+			},
+			allEvents: async function() {
+				this.eventLoading = true
+				try {
+					const that = this
+					this.realEvents = []
+					setTimeout(async function() {
+						const events = await that.getEvents(User.username)
+						that.realEvents = await events.json()
+						that.eventLoading = false
+					}, 1500)
+
+				} catch (err) {
+					console.error(err)
+					this.eventLoading = false
 				}
 			}
 		},
 		mounted() {
-			console.log("TimeOffAPI", TimeOffAPI.data())
 			this.currentBalance()
+			this.allEvents()
+		},
+		computed: {
+			computedEvents: function() {
+				return this.realEvents.map(event => {
+					const from = moment(event.fields[0].start.date)
+					const to = moment(event.fields[0].end.date)
+					return {
+						requestId: event.fields[0].requestId,
+						date: "01/01/2020",
+						from: from.format('DD/MM/YYYY'),
+						to: to.format('DD/MM/YYYY'),
+						type: event.case,
+						totalDays: to.diff(from, "days")
+					}
+				})
+			}
 		}
 	}
 </script>
@@ -129,5 +180,27 @@
 <style scoped>
     .back-btn {
         float: left;
+    }
+
+    #refreshEvents {
+        cursor: pointer;
+    }
+
+    span.title {
+        display: inline-block;
+        font-size: 1.5em;
+        margin-block-start: 0.83em;
+        margin-block-end: 0.83em;
+        margin-inline-start: 0;
+        margin-inline-end: 0;
+        margin-right: 16px;
+        font-weight: bold;
+    }
+
+    pre code {
+        background-color: #eee;
+        border: 1px solid #999;
+        display: block;
+        padding: 20px;
     }
 </style>

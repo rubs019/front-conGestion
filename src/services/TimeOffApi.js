@@ -1,16 +1,13 @@
-import Token from "./storage"
+import { Token } from "./storage"
 
 export const TimeOffAPI = {
-	created() {
-		console.log('TIMEOFAPI CREATED')
-	},
 	data: function() {
 		return {
 			API_URL: "http://localhost:5000/api",
 			TOKEN: null,
 			options: {
 				method: 'POST', // *GET, POST, PUT, DELETE, etc.
-				mode: 'cors', // no-cors, *cors, same-origin
+				mode: 'cors', // no-cors, cors, same-origin
 				cache: 'no-cache', // *default, no-cache, reload, force-cache, only-if-cached
 				credentials: 'same-origin', // include, *same-origin, omit
 				headers: {
@@ -25,16 +22,28 @@ export const TimeOffAPI = {
 			this.options.body = JSON.stringify(this.authDTO(data))
 			return await fetch(`${this.API_URL}/${endpoint}`, this.options)
 		},
-		getCurrentBalance: async function() {
-			const endpoint = 'timeoff/current-balance'
-			if (!Token) return Promise.reject('No token has been set')
+		getEvents: async function(userId) {
+			if (!userId) return Promise.reject('No userId provided')
+			if (!Token.value) return Promise.reject('No token has been set')
+
+			const endpoint = 'timeoff/events/' + userId
 			this.options.method = 'GET'
 			this.options.headers =  {
 				...this.options.headers,
 				'Authorization': `Bearer ${Token.value}`
 			}
 
-			console.log('this.options', this.options)
+			return await fetch(`${this.API_URL}/${endpoint}`, this.options)
+		},
+		getCurrentBalance: async function(userId) {
+			const endpoint = 'timeoff/current-balance/' + userId
+			if (!Token.value) return Promise.reject('No token has been set')
+			this.options.method = 'GET'
+			this.options.headers =  {
+				...this.options.headers,
+				'Authorization': `Bearer ${Token.value}`
+			}
+
 			return await fetch(`${this.API_URL}/${endpoint}`, this.options)
 		},
 		setToken: function(token) {

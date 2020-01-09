@@ -31,6 +31,7 @@
 
 <script>
 	import { TimeOffAPI } from "../services/TimeOffApi"
+		import { User } from "../services/storage"
 
 	export default {
 		name: "login",
@@ -54,10 +55,10 @@
 						this.Form.status.error = true
 						return
 					}
-					console.log('TimeOffAPI', TimeOffAPI.data())
 					const result = await this.auth(this.Form)
 					if (result.status !== 200) throw new Error(result.statusText)
 					const jsonResult = await result.json()
+                    User.setUsername(jsonResult.userName)
 					this.setToken(jsonResult.token)
 					await this.$router.push("/timeoff")
 				} catch (err) {
